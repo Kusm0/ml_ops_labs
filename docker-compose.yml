@@ -1,0 +1,29 @@
+# Навчання та MLflow UI. mlruns монтується з хоста — експерименти (локальні та з контейнера) видно в UI.
+# UI в браузері: http://localhost:5001
+
+services:
+  train:
+    build: .
+    image: mlops-lab1
+    volumes:
+      - ./mlruns:/app/mlruns
+      - ./data:/app/data
+    environment:
+      MLFLOW_TRACKING_URI: file:///app/mlruns
+    command: python src/train.py
+    # Один run:   docker compose run --rm train python src/train.py --max_depth 5
+    # 5 експериментів: docker compose run --rm train python scripts/run_experiments.py
+    # або:            docker compose run --rm train bash scripts/run_experiments.sh
+
+  mlflow-ui:
+    build: .
+    image: mlops-lab1
+    volumes:
+      - ./mlruns:/app/mlruns
+    environment:
+      MLFLOW_TRACKING_URI: file:///app/mlruns
+    command: mlflow ui --host 0.0.0.0 --backend-store-uri file:///app/mlruns
+    ports:
+      - "5001:5000"
+    # Запуск: docker compose up mlflow-ui   (або -d у фоні)
+    # У браузері: http://localhost:5001 — будуть видно runs з ./mlruns (локальні та з контейнера)

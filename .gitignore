@@ -1,0 +1,26 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment and secrets
+.env
+.env.local
+
+# Data and artifacts (per lab instructions)
+data/
+models/
+mlruns/
+
+# Jupyter
+.ipynb_checkpoints
+
+# OS and misc
+.trash/
+*.log
+.DS_Store
