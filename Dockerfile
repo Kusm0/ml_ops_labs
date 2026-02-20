@@ -1,18 +1,21 @@
-# MLOps Lab 1 — run training (and optional MLflow UI) inside container
+# MLOps Lab 1 & 2 — run training and DVC pipeline inside container
 FROM python:3.11-slim
 
-# Silence MLflow warning when Git is not installed in the container
+# Git needed for DVC (dvc repro, git add/commit from container) and MLflow run names
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 ENV GIT_PYTHON_REFRESH=quiet
 
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies (includes DVC)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project code, scripts, and data
+# Copy project code, scripts, config (data/ and .dvc/ typically mounted at run time for DVC)
 COPY src/ src/
 COPY scripts/ scripts/
+COPY dvc.yaml ./
+COPY .dvc/ .dvc/
 COPY data/ data/
 
 # Default: run training from project root so paths in train.py resolve correctly

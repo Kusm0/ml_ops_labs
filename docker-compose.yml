@@ -1,19 +1,20 @@
 # Навчання та MLflow UI. mlruns монтується з хоста — експерименти (локальні та з контейнера) видно в UI.
 # UI в браузері: http://localhost:5001
+# DVC: монтуємо проєкт (.:/app) та сховище (../dvc_storage) щоб у контейнері працювали dvc add/repro/push та git.
 
 services:
   train:
     build: .
     image: mlops-lab1
     volumes:
-      - ./mlruns:/app/mlruns
-      - ./data:/app/data
+      - .:/app
+      - ../dvc_storage:/dvc_storage
     environment:
       MLFLOW_TRACKING_URI: file:///app/mlruns
     command: python src/train.py
     # Один run:   docker compose run --rm train python src/train.py --max_depth 5
     # 5 експериментів: docker compose run --rm train python scripts/run_experiments.py
-    # або:            docker compose run --rm train bash scripts/run_experiments.sh
+    # DVC пайплайн:    docker compose run --rm train bash -c "dvc add data/raw/dataset.csv && dvc repro"
 
   mlflow-ui:
     build: .

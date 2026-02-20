@@ -1,6 +1,6 @@
-# MLOps Labs — Лабораторна робота 1
+# MLOps Labs — Лабораторні роботи 1 та 2
 
-Проєкт для відстеження експериментів ML (MLflow) на датасеті Spotify Tracks: регресія популярності треків.
+Проєкт для відстеження експериментів ML (MLflow) на датасеті Spotify Tracks: регресія популярності треків. Лабораторна 2 додає DVC для версіонування даних та пайплайн prepare → train.
 
 ## Середовище
 
@@ -10,11 +10,15 @@
 
 ## Структура
 
-- `data/raw/` — сирі дані (dataset.csv).
-- `data/processed/` — оброблений датасет (нормалізація, без outliers, track_genre закодовано); **його використовують експерименти**.
+- `data/raw/` — сирі дані (dataset.csv); версіонуються через DVC (файл `dataset.csv.dvc`).
+- `data/processed/` — оброблений датасет (нормалізація, без outliers, track_genre закодовано); **його використовують експерименти** при запуску без DVC.
+- `data/prepared/` — вихід етапу **prepare** DVC-пайплайну: `train.csv`, `test.csv`, `genre_mapping.json`.
+- `data/models/` — вихід етапу **train**: збережена модель `model.joblib`.
 - `notebooks/01_eda.ipynb` — первинний аналіз даних (EDA).
-- `src/preprocess.py` — обробка даних: нормалізація (StandardScaler), видалення outliers (IQR), числове кодування track_genre.
-- `src/train.py` — навчання регресії з логуванням у MLflow; підтримує моделі: **rf** (RandomForest), **gbm** (GradientBoosting), **hist_gbm** (HistGradientBoosting), **ridge** (Ridge).
+- `src/preprocess.py` — обробка даних (один файл у data/processed); використовується також у `prepare.py`.
+- `src/prepare.py` — етап DVC-пайплайну: raw → train.csv + test.csv у data/prepared.
+- `src/train.py` — навчання регресії з логуванням у MLflow; при виклику з DVC читає data/prepared і зберігає модель у data/models. Підтримує моделі: **rf**, **gbm**, **hist_gbm**, **ridge**.
+- `dvc.yaml` — опис пайплайну DVC (стадії prepare та train).
 
 ## Запуск
 
@@ -124,3 +128,93 @@ docker run --rm mlops-lab1 python src/train.py --max_depth 20 --n_estimators 50
 5. **MLflow UI** — виконати `mlflow ui --backend-store-uri mlruns/` і переконатися, що всі runs видно та можна їх порівняти (Compare).
 
 Повідомлення **"Run finished. View with: mlflow ui"** означає, що один run завершився успішно. Щоб лабораторну вважати виконаною, потрібні 5+ таких runs і перегляд їх у MLflow UI.
+
+---
+
+## Лабораторна робота 2 — DVC (версіонування даних та пайплайн)
+
+Пайплайн: **prepare** (сирі дані → data/prepared) → **train** (data/prepared → модель у data/models + MLflow).
+
+**Повна документація лабораторної 2:** [LAB2_DVC.md](LAB2_DVC.md) — що зроблено, структура пайплайну, приклади перевірки (кеш, зміна даних/коду, Docker).
+
+### Передумови
+
+- У проєкті вже є `.dvc/config` з remote `mylocal` (шлях `../dvc_storage`). Якщо DVC ще не ініціалізовано: `pip install dvc`, потім `dvc init` і при потребі `dvc remote add -d mylocal ../dvc_storage`.
+- Сирі дані: `data/raw/dataset.csv` (має бути присутній).
+
+### Кроки для виконання лабораторної 2
+
+1. **Додати сирі дані під DVC** (один раз):
+   ```bash
+   dvc add data/raw/dataset.csv
+   git add data/raw/dataset.csv.dvc data/raw/.gitignore
+   git commit -m "Track raw dataset with DVC"
+   mkdir -p ../dvc_storage   # якщо ще немає
+   dvc push
+   ```
+
+2. **Запустити пайплайн:**
+   ```bash
+   dvc repro
+   ```
+   Після успіху з’явиться `dvc.lock`. Закомітити: `git add dvc.yaml dvc.lock`, `git commit -m "Create DVC pipeline"`.
+
+3. **Перевірка кешу DVC:**
+   - Повторно запустити `dvc repro` — обидві стадії мають бути пропущені (skipping).
+   - Змінити щось лише в `src/train.py` (наприклад, коментар або гіперпараметр) і знову запустити `dvc repro`: виконається лише стадія **train**, **prepare** — з кешу.
+
+### Запуск етапів вручну (без DVC)
+
+```bash
+python src/prepare.py data/raw/dataset.csv data/prepared
+python src/train.py data/prepared data/models
+```
+
+Модель з’явиться в `data/models/model.joblib`, метрики — у MLflow (`mlflow ui`).
+
+### Виконання DVC з середини Docker
+
+У контейнері вже встановлено DVC і git; проєкт і DVC-сховище монтуються з хоста, тому всі команди можна виконувати з контейнера.
+
+1. **Сховище DVC на хості** (один раз): каталог має бути на один рівень вище проєкту, щоб у контейнері шлях `../dvc_storage` вказував на змонтований том:
+   ```bash
+   mkdir -p ../dvc_storage
+   ```
+
+2. **Збірка та запуск команд у контейнері** (з кореня проєкту на хості):
+   ```bash
+   docker compose build
+   ```
+
+   Додати сирі дані в DVC і відправити в remote:
+   ```bash
+   docker compose run --rm train dvc add data/raw/dataset.csv
+   docker compose run --rm train git add data/raw/dataset.csv.dvc .dvc/.gitignore
+   ```
+   Перед першим `git commit` з контейнера налаштуйте ім’я та email (без `--global`, щоб збереглося в репо на хості):
+   ```bash
+   docker compose run --rm train git config user.email "your@email.com"
+   docker compose run --rm train git config user.name "Your Name"
+   ```
+   Потім:
+   ```bash
+   docker compose run --rm train git commit -m "Track raw dataset with DVC"
+   docker compose run --rm train dvc push
+   ```
+
+   Запустити пайплайн і зафіксувати результат:
+   ```bash
+   docker compose run --rm train dvc repro
+   docker compose run --rm train git add dvc.yaml dvc.lock
+   docker compose run --rm train git commit -m "Create DVC pipeline"
+   ```
+
+   Перевірка кешу:
+   ```bash
+   docker compose run --rm train dvc repro
+   # Має показати, що стадії пропущені. Потім змініть src/train.py на хості і знову:
+   docker compose run --rm train dvc repro
+   # Має перезапуститися лише стадія train.
+   ```
+
+   Усі зміни (`.dvc`-файли, `dvc.lock`, `data/prepared/`, `data/models/`) з’являються на хості, бо проєкт змонтовано як `.:/app`. Коміти робляться у вашому локальному репозиторії.

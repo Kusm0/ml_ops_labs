@@ -12,8 +12,11 @@ env/
 .env
 .env.local
 
-# Data and artifacts (per lab instructions)
-data/
+# Data and artifacts (per lab instructions); track data/raw/*.dvc and data/raw/.gitignore in Git
+data/raw/dataset.csv
+data/processed/
+data/prepared/
+data/models/
 models/
 mlruns/
 

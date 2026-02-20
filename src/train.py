@@ -2,7 +2,9 @@
 Training script for Spotify popularity regression with MLflow tracking.
 
 Supports multiple models: RandomForest, GradientBoosting, HistGradientBoosting, Ridge.
-Loads data from data/processed/, logs params, metrics, model, and feature importance (if available).
+Reads from data/prepared/ (train.csv, test.csv) when used in DVC pipeline, or from
+data/processed/dataset.csv for legacy single-file mode. Saves model to data/models/
+for DVC pipeline output.
 """
 
 import argparse
@@ -21,6 +23,7 @@ from sklearn.ensemble import GradientBoostingRegressor, HistGradientBoostingRegr
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
+from joblib import dump as joblib_dump
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +31,8 @@ logger = logging.getLogger(__name__)
 # Default path relative to project root (script is in src/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA_PATH = PROJECT_ROOT / "data" / "processed" / "dataset.csv"
+DEFAULT_DATA_DIR = PROJECT_ROOT / "data" / "prepared"
+DEFAULT_MODEL_DIR = PROJECT_ROOT / "data" / "models"
 
 # Naming: domain_objective_stage (e.g. spotify_popularityReg_v1)
 EXPERIMENT_NAME = "spotify_popularityReg_v1"
@@ -60,10 +65,24 @@ def parse_args() -> argparse.Namespace:
     """Parse command-line arguments for training."""
     parser = argparse.ArgumentParser(description="Train regression model for Spotify popularity")
     parser.add_argument(
+        "data_dir",
+        type=str,
+        nargs="?",
+        default=None,
+        help="Directory with train.csv and test.csv (DVC: data/prepared); omit for legacy single file",
+    )
+    parser.add_argument(
+        "model_dir",
+        type=str,
+        nargs="?",
+        default=None,
+        help="Directory to save model.joblib (DVC: data/models); omit to skip",
+    )
+    parser.add_argument(
         "--data_path",
         type=str,
         default=str(DEFAULT_DATA_PATH),
-        help="Path to CSV dataset",
+        help="Path to single CSV dataset (used when data_dir not provided or has no train.csv)",
     )
     parser.add_argument(
         "--model",
@@ -224,6 +243,28 @@ def load_and_preprocess(data_path: str) -> tuple[pd.DataFrame, pd.Series]:
     return X, y
 
 
+def load_prepared_data(data_dir: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
+    """Load train.csv and test.csv from data_dir (DVC prepare stage output). Return X_train, y_train, X_test, y_test."""
+    data_path = Path(data_dir)
+    train_path = data_path / "train.csv"
+    test_path = data_path / "test.csv"
+    if not train_path.exists() or not test_path.exists():
+        raise FileNotFoundError(f"Expected {train_path} and {test_path}; run prepare stage first.")
+    train_df = pd.read_csv(train_path)
+    test_df = pd.read_csv(test_path)
+    required = FEATURE_COLUMNS + [TARGET_COLUMN]
+    for name, df in [("train", train_df), ("test", test_df)]:
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            raise ValueError(f"{name}.csv missing columns: {missing}")
+    X_train = train_df[FEATURE_COLUMNS]
+    y_train = train_df[TARGET_COLUMN]
+    X_test = test_df[FEATURE_COLUMNS]
+    y_test = test_df[TARGET_COLUMN]
+    logger.info("Loaded prepared data: train=%d test=%d", len(X_train), len(X_test))
+    return X_train, y_train, X_test, y_test
+
+
 def get_feature_importance(model: Any, feature_names: list[str]) -> np.ndarray | None:
     """Return importance array if model supports it (trees: feature_importances_, Ridge: |coef_|)."""
     if hasattr(model, "feature_importances_"):
@@ -279,20 +320,28 @@ def main() -> None:
         args.run_type,
         args.random_state,
     )
-    logger.info("Loading data from %s", args.data_path)
-    X, y = load_and_preprocess(args.data_path)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=args.test_size, random_state=args.random_state
-    )
-    logger.info(
-        "Split: train=%d test=%d (test_size=%.2f)",
-        len(X_train),
-        len(X_test),
-        args.test_size,
-    )
+    data_dir = args.data_dir and Path(args.data_dir)
+    use_prepared = data_dir is not None and (data_dir / "train.csv").exists()
 
-    data_version = get_data_hash(args.data_path)
+    if use_prepared:
+        logger.info("Loading data from directory %s", data_dir)
+        X_train, y_train, X_test, y_test = load_prepared_data(str(data_dir))
+        data_version = get_data_hash(str(data_dir / "train.csv"))
+    else:
+        data_path = args.data_path
+        logger.info("Loading data from %s", data_path)
+        X, y = load_and_preprocess(data_path)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=args.test_size, random_state=args.random_state
+        )
+        logger.info(
+            "Split: train=%d test=%d (test_size=%.2f)",
+            len(X_train),
+            len(X_test),
+            args.test_size,
+        )
+        data_version = get_data_hash(data_path)
     code_version = get_code_version()
     logger.info("data_version=%s code_version=%s", data_version, code_version)
 
@@ -330,8 +379,9 @@ def main() -> None:
         mlflow.set_tag("target", "popularity")
 
         # Dataset reference artifact (path + version + shape, no raw data)
+        data_path_for_info = str(data_dir / "train.csv") if use_prepared else args.data_path
         dataset_info = build_dataset_info(
-            args.data_path, data_version, X.shape[0], X.shape[1]
+            data_path_for_info, data_version, X_train.shape[0] + X_test.shape[0], X_train.shape[1]
         )
         dataset_info_path = PROJECT_ROOT / "dataset_info.json"
         with open(dataset_info_path, "w") as f:
@@ -356,6 +406,13 @@ def main() -> None:
         logger.info("Metrics: %s", " | ".join(metrics_log))
 
         mlflow.sklearn.log_model(model, name="model")
+
+        if args.model_dir:
+            out_dir = Path(args.model_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            model_path = out_dir / "model.joblib"
+            joblib_dump(model, model_path)
+            logger.info("Saved model to %s", model_path)
 
         artifact_path = PROJECT_ROOT / "feature_importance.png"
         if get_feature_importance(model, FEATURE_COLUMNS) is not None:
