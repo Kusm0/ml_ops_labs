@@ -1,0 +1,5 @@
+# Hydra config group: model
+# Selected via CLI: model=logistic_regression
+
+model:
+  type: "logistic_regression"

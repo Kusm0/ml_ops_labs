@@ -1,0 +1,5 @@
+# Hydra config group: model
+# Selected via defaults in config.yaml or CLI: model=random_forest
+
+model:
+  type: "random_forest"

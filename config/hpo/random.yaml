@@ -1,0 +1,5 @@
+# Hydra config group: hpo
+# Random sampler for comparison
+
+hpo:
+  sampler: "random"

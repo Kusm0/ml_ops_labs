@@ -1,0 +1,5 @@
+# Hydra config group: hpo
+# Grid sampler
+
+hpo:
+  sampler: "grid"

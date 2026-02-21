@@ -1,0 +1,5 @@
+# Hydra config group: hpo
+# TPE sampler (default)
+
+hpo:
+  sampler: "tpe"

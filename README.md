@@ -1,6 +1,6 @@
-# MLOps Labs — Лабораторні роботи 1 та 2
+# MLOps Labs — Лабораторні роботи 1, 2 та 3
 
-Проєкт для відстеження експериментів ML (MLflow) на датасеті Spotify Tracks: регресія популярності треків. Лабораторна 2 додає DVC для версіонування даних та пайплайн prepare → train.
+Проєкт для відстеження експериментів ML (MLflow) на датасеті Spotify Tracks: регресія популярності треків. Лабораторна 2 додає DVC для версіонування даних та пайплайн prepare → train. Лабораторна 3 додає HPO з Optuna, Hydra та MLflow nested runs (класифікація: popularity ≥ threshold).
 
 ## Середовище
 
@@ -18,6 +18,8 @@
 - `src/preprocess.py` — обробка даних (один файл у data/processed); використовується також у `prepare.py`.
 - `src/prepare.py` — етап DVC-пайплайну: raw → train.csv + test.csv у data/prepared.
 - `src/train.py` — навчання регресії з логуванням у MLflow; при виклику з DVC читає data/prepared і зберігає модель у data/models. Підтримує моделі: **rf**, **gbm**, **hist_gbm**, **ridge**.
+- `src/optimize.py` — HPO (Lab 3): Optuna + Hydra, бінарна класифікація (target = popularity ≥ 50), RF/Logistic Regression, nested MLflow runs.
+- `config/` — Hydra-конфігурація для HPO: `config.yaml`, `model/random_forest.yaml`, `model/logistic_regression.yaml`, `hpo/optuna.yaml`, `hpo/random.yaml`, `hpo/grid.yaml`.
 - `dvc.yaml` — опис пайплайну DVC (стадії prepare та train).
 
 ## Запуск
@@ -218,3 +220,68 @@ python src/train.py data/prepared data/models
    ```
 
    Усі зміни (`.dvc`-файли, `dvc.lock`, `data/prepared/`, `data/models/`) з’являються на хості, бо проєкт змонтовано як `.:/app`. Коміти робляться у вашому локальному репозиторії.
+
+---
+
+## Лабораторна робота 3 — HPO (Optuna, Hydra, MLflow nested runs)
+
+Гіперпараметрична оптимізація: бінарна класифікація (target = popularity ≥ поріг), моделі Random Forest та Logistic Regression, метрики F1/ROC-AUC. Кожен trial логується як дочірній (nested) run у MLflow.
+
+### Передумови
+
+- Виконати `dvc repro` або `python src/prepare.py data/raw/dataset.csv data/prepared`, щоб були `data/prepared/train.csv` та `test.csv`.
+- Встановити залежності: `pip install -r requirements.txt` (optuna, hydra-core, omegaconf).
+
+### Запуск HPO
+
+З кореня проєкту:
+
+```bash
+# За замовчуванням: model=random_forest, sampler=TPE, n_trials=20
+python src/optimize.py
+
+# Інша модель, інший sampler, більше trials
+python src/optimize.py model=logistic_regression hpo.sampler=random hpo.n_trials=30
+
+# Порівняння двох sampler-ів (TPE та Random) по 20 trials
+bash scripts/run_hpo_samplers.sh
+# або змінна: N_TRIALS=25 bash scripts/run_hpo_samplers.sh
+```
+
+У MLflow UI (експеримент **HPO_Lab3**) буде один parent run на запуск, у ньому — дочірні runs по trial; артефакти: `config_resolved.json`, `best_params.json`, `best_model.pkl`, модель у artifact_path `model`.
+
+### Реєстрація моделі в Registry (опційно)
+
+Якщо використовується MLflow tracking server з backend store, у `config/config.yaml` встановити `mlflow.register_model: true`. Найкраща модель буде зареєстрована і переведена в стадію Staging.
+
+### Запуск ЛР3 з Docker
+
+Виконати по черзі (з кореня проєкту):
+
+```bash
+# 1. Зібрати образ (optuna, hydra-core, config/ вже в requirements та Dockerfile)
+docker compose build
+
+# 2. Підготувати дані (train.csv, test.csv у data/prepared)
+docker compose run --rm train dvc repro
+# або без DVC: docker compose run --rm train python src/prepare.py data/raw/dataset.csv data/prepared
+
+# 3. Запустити HPO: 20 trials, TPE (за замовчуванням)
+docker compose run --rm train python src/optimize.py hpo.n_trials=20
+
+# 4. Запустити HPO з Random sampler (для порівняння, Крок 8 методички)
+docker compose run --rm train python src/optimize.py hpo=random hpo.n_trials=20
+```
+
+Один скрипт замість кроків 3–4 (TPE + Random по 20 trials):
+
+```bash
+bash scripts/run_hpo_samplers_docker.sh
+```
+
+Переглянути результати: запустити MLflow UI та відкрити експеримент **HPO_Lab3**:
+
+```bash
+docker compose up mlflow-ui
+# У браузері: http://localhost:5001
+```

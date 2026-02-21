@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project code, scripts, config (data/ and .dvc/ typically mounted at run time for DVC)
 COPY src/ src/
 COPY scripts/ scripts/
+COPY config/ config/
 COPY dvc.yaml ./
 COPY .dvc/ .dvc/
 COPY data/ data/
