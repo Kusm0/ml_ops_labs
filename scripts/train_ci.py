@@ -101,8 +101,12 @@ def load_data(
         if missing:
             raise ValueError(f"{name}.csv missing columns: {missing}")
     if max_rows is not None:
-        train_df = train_df.head(max_rows)
-        test_df = test_df.head(max(max_rows // 4, 100))
+        train_df = train_df.sample(
+            min(max_rows, len(train_df)), random_state=42
+        ).reset_index(drop=True)
+        test_df = test_df.sample(
+            min(max(max_rows // 4, 100), len(test_df)), random_state=42
+        ).reset_index(drop=True)
     y_train = (train_df[POPULARITY_COLUMN].values >= POPULARITY_THRESHOLD).astype(
         np.int64
     )

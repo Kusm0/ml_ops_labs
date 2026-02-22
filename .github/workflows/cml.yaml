@@ -49,8 +49,6 @@ jobs:
           python src/prepare.py data/raw/dataset.csv data/prepared
 
       - name: Train model (CI)
-        env:
-          CI: "true"
         run: |
           python scripts/train_ci.py
 
