@@ -13,7 +13,7 @@ env/
 .env.local
 
 # Data and artifacts (per lab instructions); track data/raw/*.dvc and data/raw/.gitignore in Git
-data/raw/dataset.csv
+# data/raw/dataset.csv — committed to repo for CI (Lab 4); full dataset in Git
 data/processed/
 data/prepared/
 data/models/
@@ -27,3 +27,6 @@ mlruns/
 .trash/
 *.log
 .DS_Store
+
+# Local DVC storage (not for remote repo)
+dvc_storage/

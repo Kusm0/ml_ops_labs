@@ -285,3 +285,22 @@ bash scripts/run_hpo_samplers_docker.sh
 docker compose up mlflow-ui
 # У браузері: http://localhost:5001
 ```
+
+---
+
+## Лабораторна робота 4 — CI/CD (GitHub Actions + CML)
+
+CI-пайплайн: лінтинг (flake8, black), підготовка даних, тренування класифікатора (`scripts/train_ci.py`), тести (pre/post-train, Quality Gate за F1), CML-звіт у Pull Request. Повний датасет для CI зберігається в репо: `data/raw/dataset.csv`.
+
+**Щоб CI проходив у GitHub Actions**, один раз додайте повний датасет у репо (якщо його ще немає в Git):
+
+```bash
+# Якщо файл зараз тільки в DVC, він вже є локально в data/raw/
+git add data/raw/dataset.csv
+git commit -m "Add full dataset for CI (Lab 4)"
+git push
+```
+
+Увага: GitHub не приймає файли > 100 MB. Якщо `dataset.csv` більший, використовуйте [Git LFS](https://git-lfs.github.com/) або DVC з хмарним remote для CI.
+
+Після push або відкриття PR workflow **Model CI (Train, Test, Report)** запускається автоматично; у PR з’явиться коментар із метриками та confusion matrix (CML).

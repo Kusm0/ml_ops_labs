@@ -1,0 +1,82 @@
+# Lab 4: CI/CD for ML — lint, train, test, CML report in PR
+name: Model CI (Train, Test, Report)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install cml
+
+      - name: Lint (flake8)
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Format check (black)
+        run: |
+          black . --check
+
+      # Data: full dataset is in repo (data/raw/dataset.csv) for CI
+      - name: Prepare data
+        run: |
+          if [ ! -f data/raw/dataset.csv ]; then
+            echo "data/raw/dataset.csv missing. Commit the full dataset to the repo for CI."
+            exit 1
+          fi
+          python src/prepare.py data/raw/dataset.csv data/prepared
+
+      - name: Train model (CI)
+        env:
+          CI: "true"
+        run: |
+          python scripts/train_ci.py
+
+      - name: Run tests (incl. Quality Gate)
+        env:
+          F1_THRESHOLD: "0.70"
+        run: |
+          pytest tests/ -q
+
+      - name: Create CML report (PR only)
+        if: github.event_name == 'pull_request'
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          F1_THRESHOLD: "0.70"
+        run: |
+          echo "## Model Metrics" > report.md
+          cat metrics.json >> report.md
+          echo "" >> report.md
+          echo "## Visualization" >> report.md
+          cml publish confusion_matrix.png --md >> report.md
+          echo "" >> report.md
+          echo "### Quality Gate" >> report.md
+          echo "F1 threshold: $F1_THRESHOLD" >> report.md
+          cml comment create report.md
+
+      - name: Upload model artifact (main only)
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: model
+          path: model.pkl
