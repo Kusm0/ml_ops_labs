@@ -27,7 +27,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install cml
+
+      - name: Setup CML
+        uses: iterative/setup-cml@v2
 
       - name: Lint (flake8)
         run: |
