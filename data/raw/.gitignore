@@ -1,2 +1,1 @@
-# Raw data file tracked by DVC (see dataset.csv.dvc)
-dataset.csv
+# dataset.csv — committed to repo for CI (Lab 4); not ignored
