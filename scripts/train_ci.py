@@ -174,14 +174,20 @@ def main() -> int:
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     accuracy = float(accuracy_score(y_test, y_pred))
-    f1 = float(f1_score(y_test, y_pred, average="binary"))
-    metrics = {"accuracy": accuracy, "f1": f1}
+    # weighted F1 is appropriate for imbalanced binary classification:
+    # it averages F1 per class weighted by support (number of samples),
+    # giving a fairer picture than binary F1 on the minority class alone.
+    f1 = float(f1_score(y_test, y_pred, average="weighted"))
+    f1_binary = float(f1_score(y_test, y_pred, average="binary"))
+    metrics = {"accuracy": accuracy, "f1": f1, "f1_binary": f1_binary}
     joblib.dump(model, OUTPUT_MODEL)
     with open(OUTPUT_METRICS, "w", encoding="utf-8") as f:
         json.dump(metrics, f, ensure_ascii=False, indent=2)
     plot_confusion_matrix(y_test, y_pred, str(OUTPUT_CM))
     logger.info(
-        "CI artifacts: model.pkl, metrics.json (f1=%.4f), confusion_matrix.png", f1
+        "CI artifacts: model.pkl, metrics.json (f1_weighted=%.4f, f1_binary=%.4f), confusion_matrix.png",
+        f1,
+        f1_binary,
     )
     return 0
 

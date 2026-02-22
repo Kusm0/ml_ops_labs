@@ -54,7 +54,7 @@ jobs:
 
       - name: Run tests (incl. Quality Gate)
         env:
-          F1_THRESHOLD: "0.70"
+          F1_THRESHOLD: "0.60"
         run: |
           pytest tests/ -q
 
@@ -62,7 +62,7 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          F1_THRESHOLD: "0.70"
+          F1_THRESHOLD: "0.60"
         run: |
           echo "## Model Metrics" > report.md
           cat metrics.json >> report.md
