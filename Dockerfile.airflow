@@ -1,0 +1,12 @@
+# Lab 5: Airflow image with ML project dependencies so BashOperator can run train_ci.py, dvc, etc.
+FROM apache/airflow:2.7.3
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+USER airflow
+
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --user -r /tmp/requirements.txt && rm /tmp/requirements.txt
+
+ENV PATH="/home/airflow/.local/bin:${PATH}"
