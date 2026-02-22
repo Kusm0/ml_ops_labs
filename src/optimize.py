@@ -113,6 +113,7 @@ def load_prepared_data(
 
     if target_type == "quartiles":
         q25, q50, q75 = np.percentile(pop_train, [25, 50, 75])
+
         # classes 0, 1, 2, 3: [0,q25), [q25,q50), [q50,q75), [q75,100]
         def to_quartile(pop: np.ndarray) -> np.ndarray:
             y = np.zeros(len(pop), dtype=np.int64)
@@ -120,11 +121,14 @@ def load_prepared_data(
             y[pop >= q50] = 2
             y[pop >= q75] = 3
             return y
+
         y_train = to_quartile(pop_train)
         y_test = to_quartile(pop_test)
         logger.info(
             "Quartile boundaries (from train): Q25=%.1f Q50=%.1f Q75=%.1f",
-            q25, q50, q75,
+            q25,
+            q50,
+            q75,
         )
     else:
         y_train = (pop_train >= popularity_threshold).astype(np.int64)
@@ -138,13 +142,18 @@ def load_prepared_data(
     if n_classes <= 2:
         logger.info(
             "Loaded prepared data: train=%d test=%d, binary target: train %.2f%% positive",
-            n_train, n_test, 100 * y_train.mean(),
+            n_train,
+            n_test,
+            100 * y_train.mean(),
         )
     else:
         train_pct = [100 * (y_train == k).mean() for k in range(n_classes)]
         logger.info(
             "Loaded prepared data: train=%d test=%d, %d classes (train %%): %s",
-            n_train, n_test, n_classes, " ".join(f"Q{k+1}={train_pct[k]:.1f}%%" for k in range(n_classes)),
+            n_train,
+            n_test,
+            n_classes,
+            " ".join(f"Q{k+1}={train_pct[k]:.1f}%%" for k in range(n_classes)),
         )
 
     min_train, min_test = 50, 10
@@ -299,10 +308,17 @@ def objective_factory(
                 X = np.concatenate([X_train, X_test], axis=0)
                 y = np.concatenate([y_train, y_test], axis=0)
                 score = evaluate_cv(
-                    model, X, y, metric=cfg.hpo.metric, seed=cfg.seed, n_splits=cfg.hpo.cv_folds
+                    model,
+                    X,
+                    y,
+                    metric=cfg.hpo.metric,
+                    seed=cfg.seed,
+                    n_splits=cfg.hpo.cv_folds,
                 )
             else:
-                score = evaluate(model, X_train, y_train, X_test, y_test, cfg.hpo.metric)
+                score = evaluate(
+                    model, X_train, y_train, X_test, y_test, cfg.hpo.metric
+                )
 
             mlflow.log_metric(cfg.hpo.metric, score)
             return score
@@ -310,9 +326,7 @@ def objective_factory(
     return objective
 
 
-def register_model_if_enabled(
-    model_uri: str, model_name: str, stage: str
-) -> None:
+def register_model_if_enabled(model_uri: str, model_name: str, stage: str) -> None:
     """Register model in MLflow Model Registry and transition to stage."""
     client = mlflow.tracking.MlflowClient()
     mv = mlflow.register_model(model_uri, model_name)

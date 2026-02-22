@@ -6,9 +6,12 @@ from pathlib import Path
 # Project root (tests/ is under project root)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+
 # Data path: env DATA_PATH or default train.csv path (prepared data)
 def get_data_path() -> str:
-    return os.environ.get("DATA_PATH", str(PROJECT_ROOT / "data" / "prepared" / "train.csv"))
+    return os.environ.get(
+        "DATA_PATH", str(PROJECT_ROOT / "data" / "prepared" / "train.csv")
+    )
 
 
 # Artifacts produced by train_ci.py (in project root)

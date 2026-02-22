@@ -19,7 +19,11 @@ import numpy as np
 import mlflow
 import mlflow.sklearn
 import pandas as pd
-from sklearn.ensemble import GradientBoostingRegressor, HistGradientBoostingRegressor, RandomForestRegressor
+from sklearn.ensemble import (
+    GradientBoostingRegressor,
+    HistGradientBoostingRegressor,
+    RandomForestRegressor,
+)
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
@@ -63,7 +67,9 @@ MODEL_CHOICES = ("rf", "gbm", "hist_gbm", "ridge")
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments for training."""
-    parser = argparse.ArgumentParser(description="Train regression model for Spotify popularity")
+    parser = argparse.ArgumentParser(
+        description="Train regression model for Spotify popularity"
+    )
     parser.add_argument(
         "data_dir",
         type=str,
@@ -243,13 +249,17 @@ def load_and_preprocess(data_path: str) -> tuple[pd.DataFrame, pd.Series]:
     return X, y
 
 
-def load_prepared_data(data_dir: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
+def load_prepared_data(
+    data_dir: str,
+) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     """Load train.csv and test.csv from data_dir (DVC prepare stage output). Return X_train, y_train, X_test, y_test."""
     data_path = Path(data_dir)
     train_path = data_path / "train.csv"
     test_path = data_path / "test.csv"
     if not train_path.exists() or not test_path.exists():
-        raise FileNotFoundError(f"Expected {train_path} and {test_path}; run prepare stage first.")
+        raise FileNotFoundError(
+            f"Expected {train_path} and {test_path}; run prepare stage first."
+        )
     train_df = pd.read_csv(train_path)
     test_df = pd.read_csv(test_path)
     required = FEATURE_COLUMNS + [TARGET_COLUMN]
@@ -274,7 +284,9 @@ def get_feature_importance(model: Any, feature_names: list[str]) -> np.ndarray |
     return None
 
 
-def save_feature_importance_plot(model: Any, feature_names: list[str], path: str) -> None:
+def save_feature_importance_plot(
+    model: Any, feature_names: list[str], path: str
+) -> None:
     """Plot and save feature importance bar chart (trees or Ridge)."""
     import matplotlib.pyplot as plt
 
@@ -357,7 +369,9 @@ def main() -> None:
     elif args.model == "ridge":
         run_name = f"{args.model}_{args.run_type}_alpha{args.alpha}"
     else:
-        run_name = f"{args.model}_{args.run_type}_depth{args.max_depth}_est{args.n_estimators}"
+        run_name = (
+            f"{args.model}_{args.run_type}_depth{args.max_depth}_est{args.n_estimators}"
+        )
     with mlflow.start_run(run_name=run_name):
         # Key hyperparams + reproducibility
         mlflow.log_param("seed", args.random_state)
@@ -379,9 +393,14 @@ def main() -> None:
         mlflow.set_tag("target", "popularity")
 
         # Dataset reference artifact (path + version + shape, no raw data)
-        data_path_for_info = str(data_dir / "train.csv") if use_prepared else args.data_path
+        data_path_for_info = (
+            str(data_dir / "train.csv") if use_prepared else args.data_path
+        )
         dataset_info = build_dataset_info(
-            data_path_for_info, data_version, X_train.shape[0] + X_test.shape[0], X_train.shape[1]
+            data_path_for_info,
+            data_version,
+            X_train.shape[0] + X_test.shape[0],
+            X_train.shape[1],
         )
         dataset_info_path = PROJECT_ROOT / "dataset_info.json"
         with open(dataset_info_path, "w") as f:
@@ -394,7 +413,10 @@ def main() -> None:
         model = model_instance
 
         metrics_log = []
-        for name, X_data, y_data in [("train", X_train, y_train), ("test", X_test, y_test)]:
+        for name, X_data, y_data in [
+            ("train", X_train, y_train),
+            ("test", X_test, y_test),
+        ]:
             pred = model.predict(X_data)
             rmse = np.sqrt(mean_squared_error(y_data, pred))
             mae = mean_absolute_error(y_data, pred)

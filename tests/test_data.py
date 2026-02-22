@@ -14,7 +14,9 @@ def test_data_schema_basic() -> None:
     missing = REQUIRED_COLUMNS - set(df.columns)
     assert not missing, f"Missing columns: {sorted(missing)}"
     assert df["popularity"].notna().all(), "popularity contains NaNs"
-    assert df.shape[0] >= MIN_ROWS, f"Too few rows for a learning experiment (got {df.shape[0]}, need >= {MIN_ROWS})"
+    assert (
+        df.shape[0] >= MIN_ROWS
+    ), f"Too few rows for a learning experiment (got {df.shape[0]}, need >= {MIN_ROWS})"
 
 
 def test_data_no_critical_missing() -> None:

@@ -41,7 +41,9 @@ OUT_COLUMNS = NUMERIC_FEATURE_COLUMNS + ["track_genre_encoded", TARGET_COLUMN]
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI: input CSV and output directory (e.g. for dvc.yaml)."""
-    parser = argparse.ArgumentParser(description="Prepare data: raw CSV → train.csv, test.csv")
+    parser = argparse.ArgumentParser(
+        description="Prepare data: raw CSV → train.csv, test.csv"
+    )
     parser.add_argument(
         "input",
         type=str,

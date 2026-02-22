@@ -24,6 +24,4 @@ def test_quality_gate_f1() -> None:
     with open(metrics_path, "r", encoding="utf-8") as f:
         metrics = json.load(f)
     f1 = float(metrics["f1"])
-    assert f1 >= threshold, (
-        f"Quality Gate not passed: f1={f1:.4f} < {threshold:.2f}"
-    )
+    assert f1 >= threshold, f"Quality Gate not passed: f1={f1:.4f} < {threshold:.2f}"

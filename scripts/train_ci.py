@@ -15,6 +15,7 @@ from pathlib import Path
 
 import joblib
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,7 +54,9 @@ OUTPUT_CM = PROJECT_ROOT / "confusion_matrix.png"
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Train classifier for CI; write model.pkl, metrics.json, confusion_matrix.png")
+    parser = argparse.ArgumentParser(
+        description="Train classifier for CI; write model.pkl, metrics.json, confusion_matrix.png"
+    )
     default_path = os.environ.get("DATA_PATH", str(DEFAULT_DATA_DIR))
     data_dir_default = default_path
     if default_path and Path(default_path).is_file():
@@ -79,13 +82,17 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_data(data_dir: str, max_rows: int | None) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def load_data(
+    data_dir: str, max_rows: int | None
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Load train.csv and test.csv; binary target popularity >= threshold. Return X_train, y_train, X_test, y_test."""
     path = Path(data_dir)
     train_path = path / "train.csv"
     test_path = path / "test.csv"
     if not train_path.exists() or not test_path.exists():
-        raise FileNotFoundError(f"Expected {train_path} and {test_path}. Run prepare first (e.g. dvc repro).")
+        raise FileNotFoundError(
+            f"Expected {train_path} and {test_path}. Run prepare first (e.g. dvc repro)."
+        )
     required = FEATURE_COLUMNS + [POPULARITY_COLUMN]
     train_df = pd.read_csv(train_path)
     test_df = pd.read_csv(test_path)
@@ -96,11 +103,20 @@ def load_data(data_dir: str, max_rows: int | None) -> tuple[np.ndarray, np.ndarr
     if max_rows is not None:
         train_df = train_df.head(max_rows)
         test_df = test_df.head(max(max_rows // 4, 100))
-    y_train = (train_df[POPULARITY_COLUMN].values >= POPULARITY_THRESHOLD).astype(np.int64)
-    y_test = (test_df[POPULARITY_COLUMN].values >= POPULARITY_THRESHOLD).astype(np.int64)
+    y_train = (train_df[POPULARITY_COLUMN].values >= POPULARITY_THRESHOLD).astype(
+        np.int64
+    )
+    y_test = (test_df[POPULARITY_COLUMN].values >= POPULARITY_THRESHOLD).astype(
+        np.int64
+    )
     X_train = train_df[FEATURE_COLUMNS].values
     X_test = test_df[FEATURE_COLUMNS].values
-    logger.info("Loaded train=%d test=%d, binary target (popularity >= %d)", len(X_train), len(X_test), POPULARITY_THRESHOLD)
+    logger.info(
+        "Loaded train=%d test=%d, binary target (popularity >= %d)",
+        len(X_train),
+        len(X_test),
+        POPULARITY_THRESHOLD,
+    )
     return X_train, y_train, X_test, y_test
 
 
@@ -122,7 +138,14 @@ def plot_confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray, path: str) -> 
     thresh = cm.max() / 2.0
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
-            ax.text(j, i, format(cm[i, j], "d"), ha="center", va="center", color="white" if cm[i, j] > thresh else "black")
+            ax.text(
+                j,
+                i,
+                format(cm[i, j], "d"),
+                ha="center",
+                va="center",
+                color="white" if cm[i, j] > thresh else "black",
+            )
     fig.tight_layout()
     plt.savefig(path, dpi=100, bbox_inches="tight")
     plt.close()
@@ -153,7 +176,9 @@ def main() -> int:
     with open(OUTPUT_METRICS, "w", encoding="utf-8") as f:
         json.dump(metrics, f, ensure_ascii=False, indent=2)
     plot_confusion_matrix(y_test, y_pred, str(OUTPUT_CM))
-    logger.info("CI artifacts: model.pkl, metrics.json (f1=%.4f), confusion_matrix.png", f1)
+    logger.info(
+        "CI artifacts: model.pkl, metrics.json (f1=%.4f), confusion_matrix.png", f1
+    )
     return 0
 
 
