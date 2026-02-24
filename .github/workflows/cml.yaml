@@ -32,6 +32,7 @@ jobs:
       - name: Install Airflow for DAG test
         run: |
           pip install "apache-airflow==2.7.3" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.11.txt"
+          pip install "pluggy>=1.5.0" --upgrade
 
       - name: Setup CML
         uses: iterative/setup-cml@v2
