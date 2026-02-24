@@ -21,11 +21,11 @@ def test_dag_import() -> None:
     assert dag_folder.is_dir(), f"dags folder not found: {dag_folder}"
 
     dag_bag = DagBag(dag_folder=str(dag_folder), include_examples=False)
-    assert len(dag_bag.import_errors) == 0, (
-        f"DAG import errors: {dag_bag.import_errors}"
-    )
+    assert (
+        len(dag_bag.import_errors) == 0
+    ), f"DAG import errors: {dag_bag.import_errors}"
     assert len(dag_bag.dags) >= 1, "Expected at least one DAG in dags/"
     # Lab 5 pipeline must be present
-    assert "ml_training_pipeline" in dag_bag.dags, (
-        "Expected DAG 'ml_training_pipeline' in dags/"
-    )
+    assert (
+        "ml_training_pipeline" in dag_bag.dags
+    ), "Expected DAG 'ml_training_pipeline' in dags/"
