@@ -30,7 +30,7 @@
 3. **Навчання (за замовчуванням використовує data/processed):** `python src/train.py`
 4. **Навчання з параметрами:**  
    `python src/train.py --max_depth 10 --n_estimators 100`
-5. **MLflow UI:** `mlflow ui --backend-store-uri mlruns/`, потім http://127.0.0.1:5000.
+5. **MLflow UI:** `mlflow server --host 127.0.0.1 --backend-store-uri mlruns/` (або `mlflow ui --backend-store-uri mlruns/` у старіших версіях), потім http://127.0.0.1:5000.
 
 ## Експерименти
 
@@ -304,6 +304,8 @@ git push
 Увага: GitHub не приймає файли > 100 MB. Якщо `dataset.csv` більший, використовуйте [Git LFS](https://git-lfs.github.com/) або DVC з хмарним remote для CI.
 
 Після push або відкриття PR workflow **Model CI (Train, Test, Report)** запускається автоматично; у PR з’явиться коментар із метриками та confusion matrix (CML).
+
+> Перевірка CI: створіть гілку, внесіть зміну, відкрийте PR — у вкладці Actions з'явиться прогон, у PR — CML-звіт.
 
 ---
 
