@@ -30,7 +30,7 @@
 3. **Навчання (за замовчуванням використовує data/processed):** `python src/train.py`
 4. **Навчання з параметрами:**  
    `python src/train.py --max_depth 10 --n_estimators 100`
-5. **MLflow UI:** `mlflow ui --backend-store-uri mlruns/`, потім http://127.0.0.1:5000.
+5. **MLflow UI:** `mlflow server --host 127.0.0.1 --backend-store-uri mlruns/` (або `mlflow ui --backend-store-uri mlruns/` у старіших версіях), потім http://127.0.0.1:5000.
 
 ## Експерименти
 
@@ -304,3 +304,34 @@ git push
 Увага: GitHub не приймає файли > 100 MB. Якщо `dataset.csv` більший, використовуйте [Git LFS](https://git-lfs.github.com/) або DVC з хмарним remote для CI.
 
 Після push або відкриття PR workflow **Model CI (Train, Test, Report)** запускається автоматично; у PR з’явиться коментар із метриками та confusion matrix (CML).
+
+> Перевірка CI: створіть гілку, внесіть зміну, відкрийте PR — у вкладці Actions з'явиться прогон, у PR — CML-звіт.
+
+---
+
+## Лабораторна робота 5 — Оркестрація ML-пайплайнів (Airflow, Docker multi-stage, CI)
+
+**Передумови:** виконані ЛР1–ЛР4 (MLflow, DVC, HPO, CI/CD).
+
+### Що реалізовано
+
+- **Multi-stage Dockerfile:** збірка залежностей у builder-образі, фінальний образ на `python:3.11-slim` з мінімальним набором для запуску скриптів (DVC, MLflow, requirements).
+- **Apache Airflow:** окремий compose `docker-compose.airflow.yml` (Postgres + Scheduler + Webserver, LocalExecutor). Образ з ML-залежностями: `Dockerfile.airflow`.
+- **DAG `ml_training_pipeline`:** перевірка даних (FileSensor) → DVC repro prepare → тренування (`scripts/train_ci.py`) → оцінка (XCom) → гілка за accuracy (BranchPythonOperator): реєстрація в MLflow Model Registry (Staging) або stop.
+- **CI:** у workflow додано перевірку DAG (DagBag, тест `tests/test_dag_integrity.py`) та крок `docker build -t mlops-lab5 .`.
+
+### Запуск Airflow та DAG
+
+```bash
+# Перший раз: ініціалізація БД та користувач admin/admin
+docker compose -f docker-compose.airflow.yml up -d
+# UI: http://localhost:8080
+
+# У UI увімкніть DAG "ml_training_pipeline" і запустіть (Trigger DAG).
+# Проєкт змонтовано в /opt/airflow/ml_project, MLFLOW_TRACKING_URI вказує на mlruns там.
+```
+
+Опційно: створити `../dvc_storage` і додати volume `../dvc_storage:/opt/airflow/dvc_storage` у `docker-compose.airflow.yml`, якщо потрібен DVC remote.
+
+- **Звіт ЛР5 (архітектура + контрольні питання):** [docs/LAB5_REPORT.md](docs/LAB5_REPORT.md)
+- **Інструкції з перевірки (збірка, Airflow, DAG):** [docs/LAB5_VERIFICATION.md](docs/LAB5_VERIFICATION.md)

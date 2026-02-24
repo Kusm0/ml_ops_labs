@@ -28,6 +28,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Lab 5: Airflow for DAG integrity test (tests/test_dag_integrity.py)
+      - name: Install Airflow for DAG test
+        run: |
+          pip install "apache-airflow==2.7.3" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.11.txt"
+          pip install "pluggy>=1.5.0" --upgrade
+
       - name: Setup CML
         uses: iterative/setup-cml@v2
 
@@ -52,11 +58,16 @@ jobs:
         run: |
           python scripts/train_ci.py
 
-      - name: Run tests (incl. Quality Gate)
+      - name: Run tests (incl. Quality Gate + DAG integrity)
         env:
           F1_THRESHOLD: "0.60"
         run: |
           pytest tests/ -q
+
+      # Lab 5: Docker build must succeed
+      - name: Docker build
+        run: |
+          docker build -t mlops-lab5 .
 
       - name: Create CML report (PR only)
         if: github.event_name == 'pull_request'
